@@ -120,57 +120,7 @@ def get_context(
     """
     try:
         url = "http://127.0.0.1:8000/rag/get-context"
-        headers = {
-            "Content-Type": "application/json",
-            "X-API-Key": "dev-key-12345"
-        }
-        
-
-        # Parse data if provided
-        request_data = {
-            "userId": userId,
-            "profileId": profileId,
-            "query": query,
-            "k": k,
-            "chatHistory": chatHistory,
-            "contextSummary": contextSummary
-        }
-
-        
-        # Make the API call
-        response = requests.request(
-            method="POST",
-            url=url,
-            headers=headers,
-            json=request_data if request_data else None,
-            timeout=30
-        )
-        
-        # Get response details
-        status_code = response.status_code
-        response_headers = dict(response.headers)
-        
-        # Try to parse response as JSON, fallback to text
-        try:
-            response_data = response.json()
-            print(response_data)
-            # Check if response is successful
-            if status_code == 200 and response_data:
-                # Return the API response data directly as a formatted string
-                return json.dumps(response_data, indent=2)
-            else:
-                return f"API call failed with status {status_code}: {json.dumps(response_data, indent=2)}"
-                
-        except json.JSONDecodeError:
-            # If response is not JSON, return as text
-            return f"API Response (Status {status_code}):\n{response.text}"
-        
-    except requests.exceptions.Timeout:
-        return f"API call timed out after 30 seconds for URL: {url}"
-    except requests.exceptions.ConnectionError:
-        return f"Connection error when calling API: {url}"
-    except requests.exceptions.RequestException as e:
-        return f"API call failed for URL {url}: {str(e)}"
+        return call_rag_api(url, userId, profileId, query, k, chatHistory, contextSummary)
     except Exception as e:
         return f"Unexpected error during API call: {str(e)}"
 
@@ -203,12 +153,29 @@ def get_optimized_query(
     """
     try:
         url = "http://127.0.0.1:8000/rag/rag-query"
+        return call_rag_api(url, userId, profileId, query, k, chatHistory, contextSummary)
+                
+    except Exception as e:
+        return f"Unexpected error during API call: {str(e)}"
+
+
+
+
+
+def call_rag_api(
+    url: str,
+    userId: str,
+    profileId: str,
+    query: str,
+    k: int = 5,
+    chatHistory: Optional[List[dict]] = [],  # Add chat history support
+    contextSummary: Optional[List[str]] = []
+) -> str:
+    try:
         headers = {
             "Content-Type": "application/json",
             "X-API-Key": "dev-key-12345"
         }
-        
-
         # Parse data if provided
         request_data = {
             "userId": userId,
@@ -256,7 +223,6 @@ def get_optimized_query(
         return f"API call failed for URL {url}: {str(e)}"
     except Exception as e:
         return f"Unexpected error during API call: {str(e)}"
-
 
 
 mcp_server = mcp_app.streamable_http_app()
