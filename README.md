@@ -43,6 +43,8 @@ A Model Context Protocol (MCP) server that provides web search capabilities and 
 uv run uvicorn main:mcp_server  --port 5000 --reload
 ```
 
-
-
+### Run Inspector
+```bash
+npx @modelcontextprotocol/inspector
+```
 
