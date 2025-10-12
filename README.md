@@ -40,7 +40,7 @@ A Model Context Protocol (MCP) server that provides web search capabilities and 
 ### Method 1: Using Uvicorn (Recommended)
 
 ```bash
-uv run uvicorn main:mcp_server  --port 5000 --reload
+uv run uvicorn main:mcp_server  --port 5050 --reload
 ```
 
 ### Run Inspector

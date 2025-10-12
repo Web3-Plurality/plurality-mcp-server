@@ -7,8 +7,198 @@ import requests
 import json
 from urllib.parse import urlparse
 from typing import Optional, Dict, Any, List
+import jwt
+from datetime import datetime
+from fastapi import Request
+from fastapi.responses import JSONResponse
+import os
+import hashlib
+import psycopg2
+from psycopg2.extras import RealDictCursor
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 mcp_app = FastMCP(name="mcp", stateless_http=True)
+
+# JWT Configuration
+JWT_SECRET_KEY = os.getenv("JWT_SECRET")
+JWT_ALGORITHM = "HS256"
+
+# Database Configuration
+DB_CONFIG = {
+    "host": os.getenv("DB_HOST"),
+    "port": os.getenv("DB_PORT", "5432"),
+    "database": os.getenv("DB_NAME"),
+    "user": os.getenv("DB_USER"),
+    "password": os.getenv("DB_PASSWORD")
+}
+
+def get_db_connection():
+    """Create and return a database connection"""
+    try:
+        conn = psycopg2.connect(**DB_CONFIG)
+        return conn
+    except Exception as e:
+        raise Exception(f"Database connection failed: {str(e)}")
+
+def verify_token_in_db(userId: str, profileId: str, token_hash: str) -> bool:
+    """
+    Verify if the given token_hash matches the mcpTokenHash in the UserAiProfile table.
+
+    Args:
+        userId: The user ID
+        profileId: The profile ID
+        token_hash: SHA256 hash of the JWT token
+
+    Returns:
+        True if token_hash matches mcpTokenHash, False otherwise
+    """
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        print("userId", userId)
+        print("profileId", profileId)
+        print("token_hash", token_hash)
+        # Query to retrieve the mcpTokenHash for the specified user and profile
+        query = """
+            SELECT "mcpTokenHash" FROM user_ai_profile
+            WHERE "userId" = %s AND "id" = %s
+        """
+        cursor.execute(query, (userId, profileId))
+        print("cursor", cursor)
+        record = cursor.fetchone()
+        print("record", record)
+        if record and "mcpTokenHash" in record:
+            return str(record["mcpTokenHash"]) == str(token_hash)
+        return False
+        
+    except Exception as e:
+        raise Exception(f"Database query failed: {str(e)}")
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+# Middleware for JWT authentication
+async def authenticate_jwt(request: Request, call_next):
+    """
+    Middleware to verify JWT token from Authorization header.
+    Checks Bearer token, verifies signature and expiration.
+    """
+    # Skip authentication for health check or docs endpoints (if any)
+    if request.url.path in ["/health", "/docs", "/openapi.json"]:
+        return await call_next(request)
+    
+    # Get Authorization header
+    auth_header = request.headers.get("Authorization", "")
+    
+    if not auth_header:
+        return JSONResponse(
+            status_code=401,
+            content={
+                "error": "Missing Authorization header",
+                "message": "Please provide a Bearer token in the Authorization header"
+            }
+        )
+    
+    # Check if it's a Bearer token
+    if not auth_header.startswith("Bearer "):
+        return JSONResponse(
+            status_code=401,
+            content={
+                "error": "Invalid Authorization header format",
+                "message": "Authorization header must be in format: Bearer <token>"
+            }
+        )
+    
+    # Extract token
+    token = auth_header.replace("Bearer ", "").strip()
+    
+    try:
+        # Verify and decode JWT token
+        payload = jwt.decode(
+            token, 
+            JWT_SECRET_KEY, 
+            algorithms=[JWT_ALGORITHM]
+        )
+        
+        # Check if token has expired (jwt.decode already checks this, but being explicit)
+        exp = payload.get("exp")
+        if exp and datetime.fromtimestamp(exp) < datetime.utcnow():
+            return JSONResponse(
+                status_code=401,
+                content={
+                    "error": "Token expired",
+                    "message": "Your token has expired. Please request a new one."
+                }
+            )
+
+        userId = payload.get("userId")
+        profileId = payload.get("profileId")
+        
+        # Hash the token 
+        token_hash = hashlib.sha256(token.encode()).hexdigest()
+        
+        # Verify token hash exists in database
+        try:
+            user_verified = verify_token_in_db(userId,profileId,token_hash)
+            
+            if not user_verified:
+                return JSONResponse(
+                    status_code=401,
+                    content={
+                        "error": "Token not verified",
+                        "message": "Token hash not verified. Token may have been revoked or is invalid."
+                    }
+                )
+            
+            # Store user info and profile data in request state for use in tools
+            request.state.userId = userId
+            request.state.profileId = profileId
+            
+        except Exception as db_error:
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "error": "Database verification failed",
+                    "message": f"Failed to verify token in database: {str(db_error)}"
+                }
+            )
+        
+        # Proceed with the request
+        response = await call_next(request)
+        return response
+        
+    except jwt.ExpiredSignatureError:
+        return JSONResponse(
+            status_code=401,
+            content={
+                "error": "Token expired",
+                "message": "Your token has expired. Please request a new one."
+            }
+        )
+    except jwt.InvalidTokenError as e:
+        return JSONResponse(
+            status_code=401,
+            content={
+                "error": "Invalid token",
+                "message": f"Token verification failed: {str(e)}"
+            }
+        )
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": "Authentication error",
+                "message": f"Unexpected error during authentication: {str(e)}"
+            }
+        )
+
 
 def _is_valid_url(url: str) -> bool:
     """Validate URL format"""
@@ -190,9 +380,6 @@ def get_context(
         return f"Unexpected error during API call: {str(e)}"
 
 
-
-
-
 @mcp_app.tool()
 def get_optimized_query(
     userId: str,
@@ -226,3 +413,4 @@ def get_optimized_query(
 
 
 mcp_server = mcp_app.streamable_http_app()
+mcp_server.middleware("http")(authenticate_jwt)
