@@ -1,0 +1,77 @@
+services:
+  postgresd:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: hydra
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: hydra
+    ports:
+      - "5433:5432"
+    networks:
+      - intranet
+    volumes:
+      - hydra-pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hydra -d hydra"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  hydra-migrate:
+    image: oryd/hydra:v2.3.0
+    command: migrate sql -e --yes
+    environment:
+      DSN: postgres://hydra:secret@postgresd:5432/hydra?sslmode=disable&max_conns=20&max_idle_conns=4
+    depends_on:
+      postgresd:
+        condition: service_healthy
+    networks:
+      - intranet
+    restart: on-failure
+
+  hydra:
+    image: oryd/hydra:v2.3.0
+    command: serve all --dev --config /etc/hydra/hydra.yml
+    environment:
+      DSN: postgres://hydra:secret@postgresd:5432/hydra?sslmode=disable&max_conns=20&max_idle_conns=4
+      SECRETS_SYSTEM: ${SECRETS_SYSTEM}
+    ports:
+      # Expose for direct access from host services (MCP introspection, Backend API)
+      - "4444:4444"
+      - "4445:4445"
+    volumes:
+      - ./hydra.yml:/etc/hydra/hydra.yml:ro
+    depends_on:
+      hydra-migrate:
+        condition: service_completed_successfully
+    networks:
+      - intranet
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # Traefik — single entrypoint at :5050 for MCP clients
+  # Routes /mcp + resource metadata → MCP server (host:5051)
+  # Routes /oauth2/*, /register, /userinfo, /.well-known/* → Hydra
+  # Handles CORS at the edge
+  traefik:
+    image: traefik:v3.3
+    ports:
+      - "5050:5050"
+      - "8080:8080"   # Dashboard (remove in production)
+    volumes:
+      - ./traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./dynamic.yml:/etc/traefik/dynamic.yml:ro
+    networks:
+      - intranet
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - hydra
+    restart: unless-stopped
+
+networks:
+  intranet:
+
+volumes:
+  hydra-pg-data:

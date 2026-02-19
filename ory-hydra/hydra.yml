@@ -1,0 +1,45 @@
+serve:
+  cookies:
+    same_site_mode: Lax
+  public:
+    cors:
+      enabled: true
+      allowed_origins:
+        - "*"
+      allowed_methods:
+        - POST
+        - GET
+        - PUT
+        - PATCH
+        - DELETE
+        - OPTIONS
+      allowed_headers:
+        - Authorization
+        - Content-Type
+      exposed_headers:
+        - Content-Type
+      allow_credentials: false
+
+urls:
+  self:
+    # Issuer = Traefik entrypoint. All OIDC metadata URLs will point here.
+    # Traefik routes /oauth2/* to Hydra, /mcp to MCP server.
+    issuer: http://localhost:5050
+  login: http://localhost:3000/login
+  consent: http://localhost:3000/consent
+  logout: http://localhost:3000/logout
+
+strategies:
+  access_token: jwt
+
+oidc:
+  dynamic_client_registration:
+    enabled: true
+  subject_identifiers:
+    supported_types:
+      - public
+
+ttl:
+  access_token: 15m
+  refresh_token: 720h
+  auth_code: 10m

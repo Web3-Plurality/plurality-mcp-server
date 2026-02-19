@@ -1,0 +1,18 @@
+# Traefik static configuration
+# Single entrypoint at :5050 — routes to MCP server and Hydra by path
+
+entryPoints:
+  mcp:
+    address: ":5050"
+
+providers:
+  file:
+    filename: /etc/traefik/dynamic.yml
+
+log:
+  level: DEBUG
+
+# Dashboard at :8080 for debugging (optional — remove in production)
+api:
+  dashboard: true
+  insecure: true
