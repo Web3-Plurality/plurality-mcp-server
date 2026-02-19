@@ -1,3 +1,10 @@
+## [1.0.1](https://github.com/Web3-Plurality/plurality-mcp-server/compare/v1.0.0...v1.0.1) (2026-02-19)
+
+
+### Bug Fixes
+
+* **dockerfile:** includes readme when copying deps ([f6ea2a5](https://github.com/Web3-Plurality/plurality-mcp-server/commit/f6ea2a515ef332a55027e67546a9a5fdcc16fdac))
+
 # 1.0.0 (2026-02-19)
 
 
