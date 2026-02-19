@@ -1,0 +1,17 @@
+{
+  "branches": ["main"],
+  "plugins": [
+    "@semantic-release/commit-analyzer",
+    "@semantic-release/release-notes-generator",
+    "@semantic-release/changelog",
+    "@semantic-release/git",
+    "@semantic-release/github",
+     [
+      "@semantic-release/exec",
+      {
+        "publishCmd": "docker build . --file Dockerfile --tag ghcr.io/web3-plurality/plurality-mcp-server-pre:latest && docker push ghcr.io/web3-plurality/plurality-mcp-server-pre:latest && docker tag ghcr.io/web3-plurality/plurality-mcp-server-pre:latest ghcr.io/web3-plurality/plurality-mcp-server-pre:${nextRelease.version} && docker push ghcr.io/web3-plurality/plurality-mcp-server-pre:${nextRelease.version}"
+      }
+    ]
+  ],
+  "tagFormat": "v${version}"
+}
