@@ -1,3 +1,10 @@
+## [1.0.3](https://github.com/Web3-Plurality/plurality-mcp-server/compare/v1.0.2...v1.0.3) (2026-02-19)
+
+
+### Bug Fixes
+
+* **release:** separate docker build into prepare and publish ([bb601fa](https://github.com/Web3-Plurality/plurality-mcp-server/commit/bb601fae01bed8233c60abc909ff970483ab377d))
+
 ## [1.0.2](https://github.com/Web3-Plurality/plurality-mcp-server/compare/v1.0.1...v1.0.2) (2026-02-19)
 
 
