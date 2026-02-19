@@ -1,3 +1,10 @@
+## [1.0.2](https://github.com/Web3-Plurality/plurality-mcp-server/compare/v1.0.1...v1.0.2) (2026-02-19)
+
+
+### Bug Fixes
+
+* **workflows:** adds disk cleanup before docker steps ([714f033](https://github.com/Web3-Plurality/plurality-mcp-server/commit/714f033b3d110ee867f38be0439254f6461828a5))
+
 ## [1.0.1](https://github.com/Web3-Plurality/plurality-mcp-server/compare/v1.0.0...v1.0.1) (2026-02-19)
 
 
