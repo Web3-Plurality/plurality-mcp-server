@@ -39,7 +39,7 @@ Traefik (:5050)           ← single entrypoint for clients
 - Python 3.11+
 - [uv](https://docs.astral.sh/uv/) (Python package manager)
 - Docker and Docker Compose
-- Running instances of **Backend API** (`:5000`) and **AI Service** (`:8000`)
+- Running **API Gateway and AI Services**: MCP server calls it as an API gateway for database access, semantic search, and vector queries
 
 ## Local Setup
 
@@ -66,7 +66,7 @@ MCP_RESOURCE_URL=http://localhost:5050
 BACKEND_API_URL=http://localhost:5000
 ```
 
-### 3. Start Docker services (Hydra + Traefik)
+### 3. Start Docker services (Hydra + Traefik for OAuth)
 
 ```bash
 cd ory-hydra
@@ -111,20 +111,63 @@ Traefik dashboard (for debugging routes): http://localhost:8080
 
 ## MCP Client Integration — Production
 
-In production, the MCP server is deployed at a public HTTPS URL (e.g. `https://mcp.plurality.com/mcp`). All clients support this natively with minimal setup.
+Production URL: `https://app.plurality.network/mcp`
 
-### Claude Desktop
+Dev URL: `https://dev.plurality.network/mcp`
 
-**Settings > Connectors** → add the server URL. OAuth login happens in the browser automatically.
+### Claude Desktop / Web
 
-### ChatGPT
+**Easy setup (paid plans — Pro, Max, Team, Enterprise):**
 
-**Settings > Connectors > Create** → paste the server URL. Requires a Pro, Plus, Business, Enterprise, or Edu plan with Developer Mode enabled by a workspace admin.
+1. Open **Settings → Connectors**
+2. Click **Add** → paste `https://app.plurality.network/mcp`
+3. Claude opens a browser window for OAuth login — sign in with your Plurality account
+4. Once authenticated, the 4 Plurality tools appear in the chat input
+
+**Development mode (free plan — Desktop app only):**
+
+Free-plan users can connect the Desktop app via the [`mcp-remote`](https://www.npmjs.com/package/mcp-remote) bridge by editing the config file directly. This does not work with the web app — only the native Desktop app reads this config.
+
+1. Open the config file:
+   - **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
+   - **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
+
+2. Add the `mcpServers` block:
+
+```json
+{
+  "mcpServers": {
+    "plurality-memory": {
+      "command": "npx",
+      "args": ["mcp-remote", "https://app.plurality.network/mcp"]
+    }
+  }
+}
+```
+
+> **Windows note:** If you get "Connection closed" errors, wrap with `cmd /c`:
+> ```json
+> { "command": "cmd", "args": ["/c", "npx", "mcp-remote", "https://app.plurality.network/mcp"] }
+> ```
+
+3. Fully restart Claude Desktop (quit and reopen, not just close the window).
+4. On first use, `mcp-remote` opens your browser for OAuth login. After authenticating, tokens are cached locally.
+5. Look for the tools icon in Claude Desktop's chat input — you should see the 4 Plurality tools.
+
+### ChatGPT (requires paid plan)
+
+1. Open **Settings → Connectors → Create**
+2. Enter a name (e.g. "Plurality Memory") and paste `https://app.plurality.network/mcp` as the URL
+3. Save the connector — ChatGPT discovers the OAuth metadata automatically
+4. On first use in a chat, ChatGPT opens a browser window for OAuth login
+5. After authenticating, the tools are available in your conversations
+
+> Requires a Plus, Pro, Team, Enterprise, or Edu plan. Developer Mode must be enabled by a workspace admin under **Settings → Admin → Developer Mode**.
 
 ### Claude Code
 
 ```bash
-claude mcp add --transport http plurality-memory https://mcp.plurality.com/mcp
+claude mcp add --transport http plurality-memory https://app.plurality.network/mcp
 ```
 
 Then authenticate inside Claude Code:
@@ -135,7 +178,7 @@ Then authenticate inside Claude Code:
 
 ### Other MCP Clients
 
-Any MCP client that supports streamable HTTP transport and OAuth2 with Dynamic Client Registration (DCR) can connect by pointing to the server URL.
+Any MCP client that supports streamable HTTP transport and OAuth2 with Dynamic Client Registration (DCR) can connect by pointing to `https://app.plurality.network/mcp`.
 
 ---
 
