@@ -1,3 +1,10 @@
+## [1.0.4](https://github.com/Web3-Plurality/plurality-mcp-server/compare/v1.0.3...v1.0.4) (2026-02-20)
+
+
+### Bug Fixes
+
+* **server:** add transport security and container-friendly settings to mcp app ([69f408d](https://github.com/Web3-Plurality/plurality-mcp-server/commit/69f408d4452a60a88498477a5fcc695c73dbebd0))
+
 ## [1.0.3](https://github.com/Web3-Plurality/plurality-mcp-server/compare/v1.0.2...v1.0.3) (2026-02-19)
 
 
