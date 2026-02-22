@@ -1,6 +1,13 @@
 from collections import defaultdict
-from typing import Optional, List
+from typing import Optional, List, Literal
+from pydantic import BaseModel, Field
 from plurality_mcp_server.config import http_client, current_token, BACKEND_API_URL
+
+
+class ChatMessage(BaseModel):
+    """A single message in a conversation."""
+    role: Literal["user", "assistant"] = Field(description="The role of the message sender")
+    content: str = Field(description="The text content of the message")
 
 
 def register_tools(mcp_app):
@@ -262,3 +269,162 @@ def register_tools(mcp_app):
 
         except Exception as e:
             return f"Error reading context: {str(e)}"
+
+    @mcp_app.tool()
+    async def save_memory(
+        profile_id: str,
+        content: str,
+        source_platform: str = "unknown",
+    ) -> str:
+        """
+        Save text content to a specific memory bucket.
+
+        IMPORTANT — Before calling this tool:
+        1. Call get_user_memory_buckets to list available buckets
+        2. Ask the user which bucket to save to, or offer to create a new one
+        3. If the user wants a new bucket, call create_memory_bucket first
+
+        Args:
+            profile_id: The ID of the memory bucket to save to (required).
+            content: The text content to save.
+            source_platform: The name of this MCP client platform
+                             (e.g. "claude", "chatgpt", "cursor").
+        """
+        token = current_token.get()
+        if not token:
+            return "Error: Not authenticated"
+
+        try:
+            resp = await http_client.post(
+                f"{BACKEND_API_URL}/ai/context/add-raw-context",
+                json={
+                    "profileId": profile_id,
+                    "context": content,
+                    "sourcePlatform": f"mcp-{source_platform}",
+                },
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Content-Type": "application/json",
+                },
+                timeout=120.0,
+            )
+            if resp.status_code != 200:
+                return f"Error: Backend API returned status {resp.status_code}: {resp.text}"
+
+            data = resp.json()
+            title = data.get("title", "Untitled")
+            ctx_id = data.get("contextId", "unknown")
+            desc = data.get("description", "")
+            pid = data.get("profileId", profile_id)
+
+            result = f"Memory saved successfully!\n\n"
+            result += f"- **Title:** {title}\n"
+            result += f"- **Context ID:** {ctx_id}\n"
+            result += f"- **Bucket ID:** {pid}\n"
+            if desc:
+                result += f"- **Description:** {desc}\n"
+
+            return result
+
+        except Exception as e:
+            return f"Error saving memory: {str(e)}"
+
+    @mcp_app.tool()
+    async def save_conversation(
+        profile_id: str,
+        chat_history: List[ChatMessage],
+        source_platform: str = "unknown",
+    ) -> str:
+        """
+        Save a conversation (chat history) to a specific memory bucket.
+
+        IMPORTANT — Before calling this tool:
+        1. Call get_user_memory_buckets to list available buckets
+        2. Ask the user which bucket to save to, or offer to create a new one
+        3. If the user wants a new bucket, call create_memory_bucket first
+
+        Args:
+            profile_id: The ID of the memory bucket to save to (required).
+            chat_history: List of chat messages, each with 'role' ("user" or "assistant")
+                          and 'content' (the message text).
+            source_platform: The name of this MCP client platform
+                             (e.g. "claude", "chatgpt", "cursor").
+        """
+        token = current_token.get()
+        if not token:
+            return "Error: Not authenticated"
+
+        try:
+            resp = await http_client.post(
+                f"{BACKEND_API_URL}/ai/context/add-chat-context",
+                json={
+                    "profileId": profile_id,
+                    "chatHistory": [msg.model_dump() for msg in chat_history],
+                    "platform": f"mcp-{source_platform}",
+                },
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Content-Type": "application/json",
+                },
+                timeout=120.0,
+            )
+            if resp.status_code != 200:
+                return f"Error: Backend API returned status {resp.status_code}: {resp.text}"
+
+            data = resp.json()
+            title = data.get("title", "Untitled")
+            ctx_id = data.get("contextId", "unknown")
+            desc = data.get("description", "")
+            pid = data.get("profileId", profile_id)
+            msg_count = len(chat_history)
+
+            result = f"Conversation saved successfully!\n\n"
+            result += f"- **Title:** {title}\n"
+            result += f"- **Context ID:** {ctx_id}\n"
+            result += f"- **Bucket ID:** {pid}\n"
+            result += f"- **Messages:** {msg_count}\n"
+            if desc:
+                result += f"- **Description:** {desc}\n"
+
+            return result
+
+        except Exception as e:
+            return f"Error saving conversation: {str(e)}"
+
+    @mcp_app.tool()
+    async def create_memory_bucket(
+        bucket_name: str,
+    ) -> str:
+        """
+        Create a new memory bucket (AI profile) for organizing saved content.
+
+        Only use this when the user explicitly wants a new bucket.
+        Always ask the user for confirmation before creating.
+
+        Args:
+            bucket_name: A descriptive name for the new bucket.
+        """
+        token = current_token.get()
+        if not token:
+            return "Error: Not authenticated"
+
+        try:
+            resp = await http_client.post(
+                f"{BACKEND_API_URL}/ai/profile",
+                json={"profileName": bucket_name},
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Content-Type": "application/json",
+                },
+            )
+            if resp.status_code not in (200, 201):
+                return f"Error: Backend API returned status {resp.status_code}: {resp.text}"
+
+            data = resp.json()
+            pid = data.get("id", "unknown")
+            name = data.get("profileName", bucket_name)
+
+            return f"Memory bucket created successfully!\n\n- **Name:** {name}\n- **Bucket ID:** {pid}\n\nYou can now use this ID with save_memory or save_conversation."
+
+        except Exception as e:
+            return f"Error creating memory bucket: {str(e)}"

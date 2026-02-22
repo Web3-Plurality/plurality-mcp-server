@@ -2,7 +2,7 @@ import json
 import time
 import httpx
 import jwt as pyjwt
-from plurality_mcp_server.config import http_client, HYDRA_PUBLIC_URL, HYDRA_ISSUER, MCP_RESOURCE_URL, current_token, current_user_id
+from plurality_mcp_server.config import http_client, HYDRA_ISSUER, MCP_RESOURCE_URL, current_token, current_user_id
 
 # ── JWKS cache for local JWT validation ──
 _jwks_cache: dict = {"keys": [], "fetched_at": 0}
@@ -15,7 +15,7 @@ async def _get_jwks_keys() -> list:
     if _jwks_cache["keys"] and (now - _jwks_cache["fetched_at"]) < _JWKS_CACHE_TTL:
         return _jwks_cache["keys"]
 
-    jwks_url = f"{HYDRA_PUBLIC_URL}/.well-known/jwks.json"
+    jwks_url = f"{MCP_RESOURCE_URL}/.well-known/jwks.json"
     resp = await http_client.get(jwks_url, timeout=5.0)
     resp.raise_for_status()
     jwks_data = resp.json()
@@ -129,6 +129,16 @@ class JWTAuthMiddleware:
         try:
             decoded = await verify_jwt(token)
             user_id = decoded.get("sub", "")
+
+            # Verify token has mcp:tools scope (required for MCP resource access)
+            token_scopes = decoded.get("scp", [])
+            if "mcp:tools" not in token_scopes:
+                await self._send_json_error(scope, receive, send, 403, {
+                    "error": "insufficient_scope",
+                    "message": "Token missing required scope: mcp:tools",
+                }, {"WWW-Authenticate": f'Bearer error="insufficient_scope", scope="mcp:tools", resource_metadata="{MCP_RESOURCE_URL}/.well-known/oauth-protected-resource"'})
+                return
+
             print(f"[AUTH] {method} {path} | user={user_id} | token=...{token[-8:]}", flush=True)
 
             # Set per-request context for tool functions

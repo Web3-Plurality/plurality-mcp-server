@@ -1,8 +1,9 @@
-# Traefik dynamic configuration — routing rules for MCP + Hydra
+# Traefik dynamic configuration — routing rules for MCP + Hydra + Backend API
 #
 # Architecture:
-#   Client → Traefik :5050 → MCP server :5051  (for /mcp, resource metadata)
-#                            → Hydra :4444      (for /oauth2/*, /register, /userinfo)
+#   Client → Traefik :5050 → Backend API :5000  (for OAuth metadata, DCR, JWKS proxy)
+#                            → MCP server :5051  (for /mcp)
+#                            → Hydra :4444       (for /oauth2/*, /userinfo, /.well-known/jwks.json)
 #
 # Since Hydra's issuer is set to http://localhost:5050, all OIDC metadata URLs
 # already point to :5050. Traefik routes them to the correct backend.
@@ -10,9 +11,44 @@
 
 http:
   routers:
+    # ── Backend API routes (OAuth metadata + DCR) ────────────────────
+
+    # RFC 9728 — OAuth Protected Resource Metadata
+    resource-metadata:
+      rule: "PathPrefix(`/.well-known/oauth-protected-resource`)"
+      entryPoints: ["mcp"]
+      service: backend-api
+      middlewares: ["cors"]
+      priority: 100
+
+    # Authorization server metadata — Backend API fetches from Hydra
+    # and injects registration_endpoint (Hydra doesn't advertise it)
+    authz-server-metadata:
+      rule: "PathPrefix(`/.well-known/oauth-authorization-server`)"
+      entryPoints: ["mcp"]
+      service: backend-api
+      middlewares: ["cors"]
+      priority: 100
+
+    openid-configuration:
+      rule: "PathPrefix(`/.well-known/openid-configuration`)"
+      entryPoints: ["mcp"]
+      service: backend-api
+      middlewares: ["cors"]
+      priority: 100
+
+    # DCR — routed through Backend API for request/response sanitization
+    # (Hydra is strict about field types, e.g. contacts must be an array)
+    register:
+      rule: "Path(`/register`) || Path(`/oauth2/register`)"
+      entryPoints: ["mcp"]
+      service: backend-api
+      middlewares: ["cors"]
+      priority: 110
+
     # ── MCP server routes ──────────────────────────────────────────────
 
-    # MCP-server routes — CORS handled by Traefik (ensures headers on all responses,
+    # MCP protocol — CORS handled by Traefik (ensures headers on all responses,
     # including auth middleware 401s and Traefik-generated 502s)
     mcp:
       rule: "PathPrefix(`/mcp`)"
@@ -20,38 +56,7 @@ http:
       service: mcp-server
       middlewares: ["cors"]
 
-    # RFC 9728 — OAuth Protected Resource Metadata (MCP-specific)
-    resource-metadata:
-      rule: "PathPrefix(`/.well-known/oauth-protected-resource`)"
-      entryPoints: ["mcp"]
-      service: mcp-server
-      middlewares: ["cors"]
-      priority: 100
-
-    # Authorization server metadata — MCP server fetches from Hydra
-    # and injects registration_endpoint (Hydra doesn't advertise it)
-    authz-server-metadata:
-      rule: "PathPrefix(`/.well-known/oauth-authorization-server`)"
-      entryPoints: ["mcp"]
-      service: mcp-server
-      middlewares: ["cors"]
-      priority: 100
-
-    openid-configuration:
-      rule: "PathPrefix(`/.well-known/openid-configuration`)"
-      entryPoints: ["mcp"]
-      service: mcp-server
-      middlewares: ["cors"]
-      priority: 100
-
-    # DCR — routed through MCP server for request/response sanitization
-    # (Hydra is strict about field types, e.g. contacts must be an array)
-    register:
-      rule: "Path(`/register`) || Path(`/oauth2/register`)"
-      entryPoints: ["mcp"]
-      service: mcp-server
-      middlewares: ["cors"]
-      priority: 110
+    # ── Hydra routes ───────────────────────────────────────────────────
 
     # All OAuth2 endpoints (token, auth, revoke, register, sessions, etc.)
     oauth2:
@@ -78,6 +83,11 @@ http:
   # ── Services ───────────────────────────────────────────────────────
 
   services:
+    backend-api:
+      loadBalancer:
+        servers:
+          - url: "http://host.docker.internal:5000"
+
     mcp-server:
       loadBalancer:
         servers:

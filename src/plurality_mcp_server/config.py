@@ -3,11 +3,9 @@ import os
 import httpx
 
 # ── Environment configuration ──
-# HYDRA_PUBLIC_URL: direct access to Hydra public API for JWKS + metadata
 # MCP_RESOURCE_URL: public-facing URL (Traefik entrypoint) advertised to clients
 # HYDRA_ISSUER: expected issuer claim in Hydra JWTs
 # BACKEND_API_URL: trusted backend API for data access
-HYDRA_PUBLIC_URL = os.getenv("HYDRA_PUBLIC_URL", "http://localhost:4444")
 MCP_RESOURCE_URL = os.getenv("MCP_RESOURCE_URL", "http://localhost:5050")
 HYDRA_ISSUER = os.getenv("HYDRA_ISSUER", "http://localhost:5050")
 BACKEND_API_URL = os.getenv("BACKEND_API_URL", "http://localhost:5000")

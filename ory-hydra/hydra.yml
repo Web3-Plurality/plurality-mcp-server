@@ -35,6 +35,10 @@ strategies:
 oidc:
   dynamic_client_registration:
     enabled: true
+    default_scope:
+      - openid
+      - offline_access
+      - mcp:tools
   subject_identifiers:
     supported_types:
       - public
