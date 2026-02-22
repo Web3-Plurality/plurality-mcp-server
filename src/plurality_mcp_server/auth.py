@@ -1,3 +1,4 @@
+import asyncio
 import json
 import time
 import httpx
@@ -16,13 +17,33 @@ async def _get_jwks_keys() -> list:
         return _jwks_cache["keys"]
 
     jwks_url = f"{MCP_RESOURCE_URL}/.well-known/jwks.json"
-    resp = await http_client.get(jwks_url, timeout=5.0)
+    resp = await http_client.get(jwks_url, timeout=10.0)
     resp.raise_for_status()
     jwks_data = resp.json()
     _jwks_cache["keys"] = jwks_data.get("keys", [])
     _jwks_cache["fetched_at"] = now
     print(f"[JWKS] Refreshed {len(_jwks_cache['keys'])} keys from {jwks_url}", flush=True)
     return _jwks_cache["keys"]
+
+
+async def prewarm_jwks(max_retries: int = 5, initial_delay: float = 2.0) -> None:
+    """Pre-warm JWKS cache on startup with retries for slow network environments."""
+    jwks_url = f"{MCP_RESOURCE_URL}/.well-known/jwks.json"
+    delay = initial_delay
+    for attempt in range(1, max_retries + 1):
+        try:
+            print(f"[JWKS] Pre-warm attempt {attempt}/{max_retries} from {jwks_url}", flush=True)
+            keys = await _get_jwks_keys()
+            if keys:
+                print(f"[JWKS] Pre-warm successful — {len(keys)} keys cached", flush=True)
+                return
+        except Exception as e:
+            print(f"[JWKS] Pre-warm attempt {attempt} failed: {e}", flush=True)
+        if attempt < max_retries:
+            print(f"[JWKS] Retrying in {delay:.0f}s...", flush=True)
+            await asyncio.sleep(delay)
+            delay = min(delay * 2, 30.0)  # exponential backoff, max 30s
+    print("[JWKS] Pre-warm exhausted all retries — first request will trigger fetch", flush=True)
 
 
 async def verify_jwt(token: str) -> dict:

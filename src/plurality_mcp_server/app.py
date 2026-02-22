@@ -1,8 +1,9 @@
+import asyncio
 import os
 
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
-from plurality_mcp_server.auth import JWTAuthMiddleware
+from plurality_mcp_server.auth import JWTAuthMiddleware, prewarm_jwks
 from plurality_mcp_server.tools import register_tools
 
 # ── MCP app ──
@@ -39,3 +40,22 @@ mcp_server = mcp_app.streamable_http_app()
 mcp_server = JWTAuthMiddleware(mcp_server)
 # CORS — handled entirely by Traefik (see ory-hydra/dynamic.yml).
 # DO NOT enable app-level CORSMiddleware — duplicate headers cause browser rejections.
+
+
+# ── Startup: pre-warm JWKS cache ──
+_original_app = mcp_server
+
+async def _app_with_jwks_prewarm(scope, receive, send):
+    """Wrapper that pre-warms JWKS on the first ASGI lifespan startup."""
+    if scope["type"] == "lifespan":
+        # Intercept lifespan to inject JWKS pre-warm
+        async def _receive_wrapper():
+            message = await receive()
+            if message.get("type") == "lifespan.startup":
+                asyncio.ensure_future(prewarm_jwks())
+            return message
+        await _original_app(scope, _receive_wrapper, send)
+    else:
+        await _original_app(scope, receive, send)
+
+mcp_server = _app_with_jwks_prewarm
