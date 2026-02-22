@@ -1,6 +1,6 @@
 # Plurality MCP Server
 
-An OAuth-secured [Model Context Protocol](https://modelcontextprotocol.io/) server that gives any MCP-compatible AI client (Claude Code, Claude Desktop, Cursor, etc.) read access to a user's Plurality memory — documents, notes, and files stored across memory buckets.
+An OAuth-secured [Model Context Protocol](https://modelcontextprotocol.io/) server that gives any MCP-compatible AI client (Claude Code, Claude Desktop, Cursor, etc.) read and write access to a user's Plurality memory — documents, notes, and files stored across memory buckets.
 
 ## Architecture
 
@@ -11,19 +11,19 @@ MCP Client (Claude Code, Cursor, etc.)
     ▼
 Traefik (:5050)           ← single entrypoint for clients
     ├── /mcp              → MCP Server (:5051)
-    ├── /.well-known/*    → MCP Server or Hydra
+    ├── /.well-known/*    → API Gateway or Hydra
     ├── /oauth2/*         → Hydra (:4444)
-    └── /register         → MCP Server (DCR proxy)
+    └── /register         → API Gateway (DCR proxy)
                                 │
                                 │ Bearer token
                                 ▼
-                          Backend API (:5000)
+                          API Gateway (:5000)
                                 │
                                 ▼
-                          AI Service (:8000)
+                          Vector Service (:8000)
 ```
 
-**Traefik** is the single entrypoint. It routes OAuth traffic to Hydra and MCP protocol traffic to the MCP server. The MCP server validates JWTs locally via Hydra's JWKS keys, then forwards the Bearer token to the Backend API for data access.
+**Traefik** is the single entrypoint. It routes OAuth traffic to Hydra and MCP protocol traffic to the MCP server. The MCP server validates JWTs locally via Hydra's JWKS keys, then forwards the Bearer token to the API Gateway for data access. The API Gateway handles authentication, DCR proxying, and routes vector/search operations to the Vector Service.
 
 ## Tools Exposed
 
@@ -33,13 +33,17 @@ Traefik (:5050)           ← single entrypoint for clients
 | `list_items_in_memory_bucket` | List stored items in a specific bucket (metadata only) |
 | `search_memory` | Semantic search across buckets with relevance scoring |
 | `read_context` | Read the full content of a stored item with pagination |
+| `save_memory` | Save text content to a specific memory bucket |
+| `save_conversation` | Save a conversation (chat history) to a memory bucket |
+| `create_memory_bucket` | Create a new memory bucket for organizing saved content |
 
 ## Prerequisites
 
 - Python 3.11+
 - [uv](https://docs.astral.sh/uv/) (Python package manager)
 - Docker and Docker Compose
-- Running **API Gateway and AI Services**: MCP server calls it as an API gateway for database access, semantic search, and vector queries
+- Running **API Gateway** (plurality-backend-api): Handles authentication, OAuth metadata, DCR proxying, and database access
+- Running **Vector Service** (plurality-ai-service): Handles semantic search and vector database operations
 
 ## Local Setup
 
@@ -57,10 +61,9 @@ uv sync
 cp .env.example .env
 ```
 
-Default values work for local development — no changes needed if Backend API runs on `:5000`:
+Default values work for local development — no changes needed if the API Gateway runs on `:5000`:
 
 ```env
-HYDRA_PUBLIC_URL=http://localhost:4444
 HYDRA_ISSUER=http://localhost:5050
 MCP_RESOURCE_URL=http://localhost:5050
 BACKEND_API_URL=http://localhost:5000
@@ -79,7 +82,7 @@ This starts:
 |---|---|---|
 | **PostgreSQL** | 5433 | Hydra's database |
 | **Hydra** | 4444, 4445 | OAuth2/OIDC provider (public + admin) |
-| **Traefik** | 5050 | API gateway / reverse proxy |
+| **Traefik** | 5050 | Reverse proxy / routing |
 
 Wait for all services to be healthy:
 
@@ -122,7 +125,7 @@ Dev URL: `https://dev.plurality.network/mcp`
 1. Open **Settings → Connectors**
 2. Click **Add** → paste `https://app.plurality.network/mcp`
 3. Claude opens a browser window for OAuth login — sign in with your Plurality account
-4. Once authenticated, the 4 Plurality tools appear in the chat input
+4. Once authenticated, the 7 Plurality tools appear in the chat input
 
 **Development mode (free plan — Desktop app only):**
 
@@ -152,7 +155,7 @@ Free-plan users can connect the Desktop app via the [`mcp-remote`](https://www.n
 
 3. Fully restart Claude Desktop (quit and reopen, not just close the window).
 4. On first use, `mcp-remote` opens your browser for OAuth login. After authenticating, tokens are cached locally.
-5. Look for the tools icon in Claude Desktop's chat input — you should see the 4 Plurality tools.
+5. Look for the tools icon in Claude Desktop's chat input — you should see the 7 Plurality tools.
 
 ### ChatGPT (requires paid plan)
 
@@ -251,7 +254,7 @@ Claude Desktop's config file only supports stdio transport, so it can't connect 
 
 4. On first use, `mcp-remote` opens your browser for the Hydra OAuth login. After authenticating, tokens are cached locally.
 
-5. Look for the tools icon in Claude Desktop's chat input — you should see the 4 Plurality tools.
+5. Look for the tools icon in Claude Desktop's chat input — you should see the 7 Plurality tools.
 
 ### ChatGPT
 
@@ -270,20 +273,21 @@ Enter `http://localhost:5050/mcp` as the server URL. The inspector will walk thr
 The server uses [Ory Hydra](https://www.ory.sh/hydra/) as the OAuth2/OIDC provider with the following flow:
 
 1. **Client discovers auth server** — fetches `/.well-known/oauth-protected-resource` from Traefik
-2. **Client registers** — calls `/register` (Dynamic Client Registration) to get `client_id`/`client_secret`
-3. **User authenticates** — browser opens Hydra's login flow, which redirects to the Backend API's login/consent endpoints at `localhost:3000`
-4. **Token issued** — Hydra returns a JWT access token (RS256, 15min TTL) with the user's ID as the `sub` claim
+2. **Client registers** — calls `/register` (Dynamic Client Registration) to get `client_id`/`client_secret`. The API Gateway proxies this to Hydra, injecting the `mcp:tools` scope
+3. **User authenticates** — browser opens Hydra's login flow, which redirects to the frontend's login/consent pages
+4. **Token issued** — Hydra returns a JWT access token (RS256, 15min TTL) with the user's ID as the `sub` claim and `mcp:tools` scope
 5. **Authenticated requests** — client includes `Authorization: Bearer <token>` on all MCP requests
-6. **MCP server validates** — JWT signature verified locally against Hydra's JWKS public keys (cached 1 hour)
-7. **Backend API access** — MCP server forwards the Bearer token when calling Backend API endpoints
+6. **MCP server validates** — JWT signature verified locally against Hydra's JWKS public keys (cached 1 hour), `mcp:tools` scope is checked
+7. **API Gateway access** — MCP server forwards the Bearer token when calling API Gateway endpoints for data retrieval and storage
 
 ### Token details
 
 | Property | Value |
 |---|---|
 | Algorithm | RS256 |
-| Issuer | `http://localhost:5050` (Traefik entrypoint) |
+| Issuer | `http://localhost:5050` (local) / `https://app.plurality.network` (prod) |
 | Subject | User's database UUID |
+| Scope | `openid offline_access mcp:tools` |
 | Access token TTL | 15 minutes |
 | Refresh token TTL | 720 hours |
 
@@ -297,9 +301,8 @@ plurality-mcp-server/
 ├── src/plurality_mcp_server/
 │   ├── app.py                          # FastMCP app + middleware stack
 │   ├── config.py                       # Env vars, shared HTTP client, context vars
-│   ├── auth.py                         # JWT validation via Hydra JWKS
-│   ├── oauth.py                        # OAuth metadata + DCR proxy endpoints
-│   └── tools.py                        # MCP tool definitions
+│   ├── auth.py                         # JWT validation via Hydra JWKS + scope check
+│   └── tools.py                        # MCP tool definitions (read + write)
 └── ory-hydra/
     ├── docker-compose.yml              # Hydra + Traefik + PostgreSQL
     ├── hydra.yml                       # Hydra OAuth2/OIDC config
@@ -313,13 +316,17 @@ plurality-mcp-server/
 - Check that Hydra is running: `curl http://localhost:4444/.well-known/openid-configuration`
 - Check that the JWT hasn't expired (15min TTL)
 - Verify `HYDRA_ISSUER` matches the issuer in the token's `iss` claim
+- Ensure the token has the `mcp:tools` scope
 
 **MCP client gets 502 Bad Gateway**
 - The MCP server isn't running on port 5051
 - Check Traefik logs: `docker compose -f ory-hydra/docker-compose.yml logs traefik`
 
 **Tools return "Error: Backend API returned status 401"**
-- Backend API needs to accept Hydra JWTs — ensure `jwks-rsa` is installed and the dual auth middleware is deployed
+- The API Gateway needs to accept Hydra JWTs — ensure `jwks-rsa` is installed and the OAuth auth middleware is deployed
 
 **OAuth flow redirects to localhost:3000 but nothing is there**
 - Hydra is configured with `login: http://localhost:3000/login` — this points to the Plurality frontend. Start the frontend or update `hydra.yml` URLs.
+
+**DCR returns unexpected scope or missing mcp:tools**
+- The API Gateway's DCR proxy injects `mcp:tools` into the allowed scopes. Ensure the API Gateway is running and the `/register` route is reachable.
