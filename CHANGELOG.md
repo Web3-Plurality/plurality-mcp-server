@@ -1,3 +1,10 @@
+# [1.1.0](https://github.com/Web3-Plurality/plurality-mcp-server/compare/v1.0.4...v1.1.0) (2026-02-22)
+
+
+### Features
+
+* **mcp:** route oauth via backend and add memory tools ([7a3870b](https://github.com/Web3-Plurality/plurality-mcp-server/commit/7a3870bc0b680f9a3601b3ebc6dba3f5e1f74d72))
+
 ## [1.0.4](https://github.com/Web3-Plurality/plurality-mcp-server/compare/v1.0.3...v1.0.4) (2026-02-20)
 
 
