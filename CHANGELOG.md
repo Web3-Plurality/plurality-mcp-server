@@ -1,3 +1,10 @@
+## [1.1.1](https://github.com/Web3-Plurality/plurality-mcp-server/compare/v1.1.0...v1.1.1) (2026-02-22)
+
+
+### Bug Fixes
+
+* **auth:** prewarm jwks cache on startup ([0f6dc9f](https://github.com/Web3-Plurality/plurality-mcp-server/commit/0f6dc9f302442065047224eee4a0e7bca6d3acd0))
+
 # [1.1.0](https://github.com/Web3-Plurality/plurality-mcp-server/compare/v1.0.4...v1.1.0) (2026-02-22)
 
 
