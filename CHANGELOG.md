@@ -1,3 +1,10 @@
+## [1.1.2](https://github.com/Web3-Plurality/plurality-mcp-server/compare/v1.1.1...v1.1.2) (2026-02-24)
+
+
+### Bug Fixes
+
+* **mcp:** disable dns rebinding protection ([3211d8b](https://github.com/Web3-Plurality/plurality-mcp-server/commit/3211d8bcc45c374e9a00e89a680e12fadf1a3470))
+
 ## [1.1.1](https://github.com/Web3-Plurality/plurality-mcp-server/compare/v1.1.0...v1.1.1) (2026-02-22)
 
 
