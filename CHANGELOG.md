@@ -1,3 +1,10 @@
+## [1.1.3](https://github.com/Web3-Plurality/plurality-mcp-server/compare/v1.1.2...v1.1.3) (2026-02-24)
+
+
+### Bug Fixes
+
+* **app:** adds http logging and drops transport security ([733ff5c](https://github.com/Web3-Plurality/plurality-mcp-server/commit/733ff5cf6cb354718881a1566b479846f90e49da))
+
 ## [1.1.2](https://github.com/Web3-Plurality/plurality-mcp-server/compare/v1.1.1...v1.1.2) (2026-02-24)
 
 
