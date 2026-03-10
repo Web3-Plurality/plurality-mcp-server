@@ -1,3 +1,10 @@
+# [1.2.0](https://github.com/Web3-Plurality/plurality-mcp-server/compare/v1.1.3...v1.2.0) (2026-03-10)
+
+
+### Features
+
+* **tools:** adds owned/shared bucket info and editability flag ([346c957](https://github.com/Web3-Plurality/plurality-mcp-server/commit/346c957e53a07f495c7f8217e5e33ca855e11e29))
+
 ## [1.1.3](https://github.com/Web3-Plurality/plurality-mcp-server/compare/v1.1.2...v1.1.3) (2026-02-24)
 
 
