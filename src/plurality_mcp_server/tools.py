@@ -22,6 +22,10 @@ def register_tools(mcp_app):
         Returns bucket IDs, names, and item counts.
         Use this first to discover available memory buckets before browsing
         or searching their contents.
+
+        Returns both owned buckets and buckets shared with the user.
+        Each bucket has a `role` ('owner', 'editor', or 'viewer') and
+        shared buckets include `sharedBy` information.
         """
         token = current_token.get()
         if not token:
@@ -41,18 +45,37 @@ def register_tools(mcp_app):
             if not profiles:
                 return "No memory buckets found. The user hasn't created any yet."
 
-            result_lines = []
+            owned_lines = []
+            shared_lines = []
             for p in profiles:
                 name = p.get("profileName", p.get("name", "Unnamed"))
                 pid = p.get("id", "unknown")
                 count = p.get("contextCount", p.get("context_count", 0))
                 desc = p.get("description", "")
+                role = p.get("role", "owner")
+                is_owner = p.get("isOwner", True)
+
                 line = f"- **{name}** (id: {pid}, {count} items)"
+                if not is_owner:
+                    line += f" [role: {role}]"
+                    shared_by = p.get("sharedBy", {})
+                    shared_by_name = shared_by.get("name") or shared_by.get("email") or shared_by.get("wallet") or "unknown"
+                    line += f"\n  Shared by: {shared_by_name}"
                 if desc:
                     line += f"\n  {desc}"
-                result_lines.append(line)
 
-            return f"Found {len(profiles)} memory bucket(s):\n\n" + "\n".join(result_lines)
+                if is_owner:
+                    owned_lines.append(line)
+                else:
+                    shared_lines.append(line)
+
+            parts = []
+            if owned_lines:
+                parts.append(f"**Your buckets ({len(owned_lines)}):**\n\n" + "\n".join(owned_lines))
+            if shared_lines:
+                parts.append(f"**Shared with you ({len(shared_lines)}):**\n\n" + "\n".join(shared_lines))
+
+            return f"Found {len(profiles)} memory bucket(s):\n\n" + "\n\n".join(parts)
 
         except Exception as e:
             return f"Error fetching memory buckets: {str(e)}"
@@ -99,6 +122,7 @@ def register_tools(mcp_app):
                 content_size = c.get("contentSize", 0)
                 vector_ids = c.get("vectorIds", [])
                 chunk_count = len(vector_ids) if isinstance(vector_ids, list) else 0
+                can_edit = c.get("canEdit")
                 line = f"- **{title}** (contextId: {ctx_id})"
                 details = []
                 if source_type:
@@ -109,6 +133,8 @@ def register_tools(mcp_app):
                     details.append(f"{chunk_count} chunks")
                 if content_size:
                     details.append(f"{content_size} bytes")
+                if can_edit is not None:
+                    details.append("editable" if can_edit else "read-only")
                 if details:
                     line += f" [{', '.join(details)}]"
                 if description:
@@ -131,6 +157,7 @@ def register_tools(mcp_app):
 
         Finds relevant content even when the query doesn't exactly match stored text.
         Searches all memory buckets by default, or specify bucket IDs to narrow scope.
+        Searches across both owned and shared buckets automatically.
         Returns results grouped by memory bucket and context, with content previews
         and relevance scores.
         Use this to discover which contexts contain relevant information,
