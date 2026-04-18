@@ -301,6 +301,7 @@ def register_tools(mcp_app):
     async def save_memory(
         profile_id: str,
         content: str,
+        title: Optional[str] = None,
         source_platform: str = "unknown",
     ) -> str:
         """
@@ -314,6 +315,8 @@ def register_tools(mcp_app):
         Args:
             profile_id: The ID of the memory bucket to save to (required).
             content: The text content to save.
+            title: Optional custom title for this memory. If not provided, a title
+                   is generated automatically from the content.
             source_platform: The name of this MCP client platform
                              (e.g. "claude", "chatgpt", "cursor").
         """
@@ -322,13 +325,17 @@ def register_tools(mcp_app):
             return "Error: Not authenticated"
 
         try:
+            body = {
+                "profileId": profile_id,
+                "context": content,
+                "sourcePlatform": f"mcp-{source_platform}",
+            }
+            if title:
+                body["title"] = title
+
             resp = await http_client.post(
                 f"{BACKEND_API_URL}/ai/context/add-raw-context",
-                json={
-                    "profileId": profile_id,
-                    "context": content,
-                    "sourcePlatform": f"mcp-{source_platform}",
-                },
+                json=body,
                 headers={
                     "Authorization": f"Bearer {token}",
                     "Content-Type": "application/json",
@@ -360,6 +367,7 @@ def register_tools(mcp_app):
     async def save_conversation(
         profile_id: str,
         chat_history: List[ChatMessage],
+        title: Optional[str] = None,
         source_platform: str = "unknown",
     ) -> str:
         """
@@ -374,6 +382,8 @@ def register_tools(mcp_app):
             profile_id: The ID of the memory bucket to save to (required).
             chat_history: List of chat messages, each with 'role' ("user" or "assistant")
                           and 'content' (the message text).
+            title: Optional custom title for this conversation. If not provided, a title
+                   is generated automatically from the conversation content.
             source_platform: The name of this MCP client platform
                              (e.g. "claude", "chatgpt", "cursor").
         """
@@ -382,13 +392,17 @@ def register_tools(mcp_app):
             return "Error: Not authenticated"
 
         try:
+            body = {
+                "profileId": profile_id,
+                "chatHistory": [msg.model_dump() for msg in chat_history],
+                "platform": f"mcp-{source_platform}",
+            }
+            if title:
+                body["title"] = title
+
             resp = await http_client.post(
                 f"{BACKEND_API_URL}/ai/context/add-chat-context",
-                json={
-                    "profileId": profile_id,
-                    "chatHistory": [msg.model_dump() for msg in chat_history],
-                    "platform": f"mcp-{source_platform}",
-                },
+                json=body,
                 headers={
                     "Authorization": f"Bearer {token}",
                     "Content-Type": "application/json",
