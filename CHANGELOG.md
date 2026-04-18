@@ -1,3 +1,10 @@
+# [1.3.0](https://github.com/Web3-Plurality/plurality-mcp-server/compare/v1.2.0...v1.3.0) (2026-04-18)
+
+
+### Features
+
+* **tools:** accept optional title when saving memories and conversations ([e2cbfa3](https://github.com/Web3-Plurality/plurality-mcp-server/commit/e2cbfa3c80b1058952f0281f949a2bb8d125e4ab))
+
 # [1.2.0](https://github.com/Web3-Plurality/plurality-mcp-server/compare/v1.1.3...v1.2.0) (2026-03-10)
 
 
