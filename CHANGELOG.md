@@ -1,3 +1,10 @@
+## [1.3.1](https://github.com/Web3-Plurality/plurality-mcp-server/compare/v1.3.0...v1.3.1) (2026-04-28)
+
+
+### Bug Fixes
+
+* **hydra:** accept `offline` scope alias for Perplexity MCP ([e6ea0ee](https://github.com/Web3-Plurality/plurality-mcp-server/commit/e6ea0eef385dac94f9ed860d1b8ff6e3e229dd8e))
+
 # [1.3.0](https://github.com/Web3-Plurality/plurality-mcp-server/compare/v1.2.0...v1.3.0) (2026-04-18)
 
 
