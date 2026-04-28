@@ -38,6 +38,7 @@ oidc:
     default_scope:
       - openid
       - offline_access
+      - offline
       - mcp:tools
   subject_identifiers:
     supported_types:
