@@ -3,7 +3,10 @@ import json
 import time
 import httpx
 import jwt as pyjwt
-from plurality_mcp_server.config import http_client, HYDRA_ISSUER, MCP_RESOURCE_URL, current_token, current_user_id
+from plurality_mcp_server.config import http_client, HYDRA_ISSUER, MCP_RESOURCE_URL, BACKEND_API_URL, current_token, current_user_id
+
+# ── PAT prefix used by Plurality personal access tokens ──
+PAT_PREFIX = "plur_pat_"
 
 # ── JWKS cache for local JWT validation ──
 _jwks_cache: dict = {"keys": [], "fetched_at": 0}
@@ -146,6 +149,50 @@ class JWTAuthMiddleware:
             return
 
         token = auth_header.removeprefix("Bearer ").strip()
+
+        # ── Personal Access Token (PAT) path ──
+        # Validates via the backend (which owns the PAT DB). Keeps this server stateless.
+        if token.startswith(PAT_PREFIX):
+            try:
+                verify_resp = await http_client.get(
+                    f"{BACKEND_API_URL}/pat/tokens/verify",
+                    headers={"Authorization": f"Bearer {token}"},
+                    timeout=5.0,
+                )
+            except httpx.RequestError as e:
+                await self._send_json_error(scope, receive, send, 502, {
+                    "error": "pat_verify_failed",
+                    "message": f"Failed to verify PAT with backend: {str(e)}",
+                })
+                return
+
+            if verify_resp.status_code != 200:
+                err_body = {}
+                try:
+                    err_body = verify_resp.json()
+                except Exception:
+                    pass
+                await self._send_json_error(scope, receive, send, 401, {
+                    "error": err_body.get("error", "invalid_pat"),
+                    "message": "Invalid or expired API token",
+                }, {"WWW-Authenticate": f'Bearer resource_metadata="{MCP_RESOURCE_URL}/.well-known/oauth-protected-resource"'})
+                return
+
+            info = verify_resp.json()
+            pat_scopes = info.get("scopes", [])
+            if "mcp:tools" not in pat_scopes:
+                await self._send_json_error(scope, receive, send, 403, {
+                    "error": "insufficient_scope",
+                    "message": "Token missing required scope: mcp:tools",
+                }, {"WWW-Authenticate": f'Bearer error="insufficient_scope", scope="mcp:tools"'})
+                return
+
+            user_id = info.get("user_id", "")
+            print(f"[AUTH-PAT] {method} {path} | user={user_id} | token=...{token[-8:]}", flush=True)
+            current_token.set(token)
+            current_user_id.set(user_id)
+            await self.app(scope, receive, send)
+            return
 
         try:
             decoded = await verify_jwt(token)

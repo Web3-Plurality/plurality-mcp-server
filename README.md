@@ -118,6 +118,29 @@ Production URL: `https://app.plurality.network/mcp`
 
 Dev URL: `https://dev.plurality.network/mcp`
 
+### Authentication — choose your method
+
+The MCP server accepts **two** auth methods:
+
+| Method | When to use | Browser required? |
+|---|---|---|
+| **OAuth 2.1 + PKCE** (Hydra) | Interactive clients: Claude Desktop, Web, Code, ChatGPT | Yes (one-time) |
+| **Personal Access Token (PAT)** | Headless agents, CI runners, custom integrations, Perplexity, n8n, LangChain | No |
+
+PATs require a **paid plan** and are managed from the **Connect via MCP** popup in the dashboard sidebar (click "Manage tokens →"). Pick OAuth if your client supports a browser; pick PAT if it doesn't.
+
+#### Using a PAT
+
+1. Sign in to the dashboard, open **Connect via MCP → Manage tokens**
+2. Click **Create token**, give it a name and optional expiry, copy the `plur_pat_…` value
+3. Configure your client to send it as a Bearer token:
+   ```
+   Authorization: Bearer plur_pat_...
+   ```
+4. Server URL is the same as for OAuth: `https://app.plurality.network/mcp`
+
+PATs auto-revoke at their expiry, can be rotated with a configurable grace period (default 7 days), and can be immediately revoked from the dashboard. They never appear in logs and are stored hashed.
+
 ### Claude Desktop / Web
 
 **Easy setup (paid plans — Pro, Max, Team, Enterprise):**
