@@ -1,3 +1,10 @@
+# [1.4.0](https://github.com/Web3-Plurality/plurality-mcp-server/compare/v1.3.1...v1.4.0) (2026-04-30)
+
+
+### Features
+
+* **auth:** add personal access token (pat) support and docs ([528966d](https://github.com/Web3-Plurality/plurality-mcp-server/commit/528966d27b0f0215b667311b4e77adbbe452a1d6))
+
 ## [1.3.1](https://github.com/Web3-Plurality/plurality-mcp-server/compare/v1.3.0...v1.3.1) (2026-04-28)
 
 
