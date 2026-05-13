@@ -1,4 +1,5 @@
 from collections import defaultdict
+from datetime import datetime
 from typing import Optional, List, Literal
 from pydantic import BaseModel, Field
 from plurality_mcp_server.config import http_client, current_token, BACKEND_API_URL
@@ -342,6 +343,44 @@ def register_tools(mcp_app):
                 },
                 timeout=120.0,
             )
+            if resp.status_code == 413:
+                # Auto-fallback: BE rejected raw text as too large (>500 KB).
+                # Wrap as a .txt file and POST to /upload-file, which uses
+                # background embedding instead of the inline embedding loop.
+                ts = datetime.now().strftime("%Y-%m-%d %H-%M")
+                filename = f"{title}.txt" if title else f"MCP saved text - {ts}.txt"
+                files = {"file": (filename, content.encode("utf-8"), "text/plain")}
+                form = {"profileId": profile_id}
+                upload_resp = await http_client.post(
+                    f"{BACKEND_API_URL}/ai/context/upload-file",
+                    files=files,
+                    data=form,
+                    headers={"Authorization": f"Bearer {token}"},
+                    timeout=120.0,
+                )
+                if upload_resp.status_code == 400:
+                    err = upload_resp.json().get("error", upload_resp.text) if upload_resp.headers.get("content-type", "").startswith("application/json") else upload_resp.text
+                    return (
+                        f"Error: Content is too large even as a file ({err}). "
+                        f"Split the content into smaller pieces and retry."
+                    )
+                if upload_resp.status_code != 200:
+                    return f"Error: Backend API returned status {upload_resp.status_code}: {upload_resp.text}"
+                data = upload_resp.json()
+                ctx_id = data.get("contextId", "unknown")
+                final_title = data.get("title", filename)
+                final_desc = data.get("description", "")
+                result = (
+                    f"Memory saved as a file (content exceeded the raw-text size limit).\n\n"
+                    f"- **Title:** {final_title}\n"
+                    f"- **Filename:** {filename}\n"
+                    f"- **Context ID:** {ctx_id}\n"
+                    f"- **Bucket ID:** {profile_id}\n"
+                    f"- **Status:** Processing in background; embeddings will be searchable shortly."
+                )
+                if final_desc:
+                    result += f"\n- **Description:** {final_desc}"
+                return result
             if resp.status_code != 200:
                 return f"Error: Backend API returned status {resp.status_code}: {resp.text}"
 
