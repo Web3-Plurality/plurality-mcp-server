@@ -1,3 +1,10 @@
+## [1.4.1](https://github.com/Web3-Plurality/plurality-mcp-server/compare/v1.4.0...v1.4.1) (2026-05-13)
+
+
+### Bug Fixes
+
+* **tools:** fallback to file upload when saving large raw text memories ([8f6f726](https://github.com/Web3-Plurality/plurality-mcp-server/commit/8f6f726aac7c748b96734f8cddb20e21d331594d))
+
 # [1.4.0](https://github.com/Web3-Plurality/plurality-mcp-server/compare/v1.3.1...v1.4.0) (2026-04-30)
 
 
