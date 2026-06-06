@@ -1,3 +1,10 @@
+# [1.5.0](https://github.com/Web3-Plurality/plurality-mcp-server/compare/v1.4.1...v1.5.0) (2026-06-06)
+
+
+### Features
+
+* **tools:** replace tools module with expanded, robust memory-management mcp tools ([866d562](https://github.com/Web3-Plurality/plurality-mcp-server/commit/866d56265fbee9f89c0a4cd5dad293ea4e704d47))
+
 ## [1.4.1](https://github.com/Web3-Plurality/plurality-mcp-server/compare/v1.4.0...v1.4.1) (2026-05-13)
 
 
