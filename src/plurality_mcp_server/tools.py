@@ -53,6 +53,12 @@ def register_tools(mcp_app):
         / delete_context / replace_context_content without a separate
         list_items_in_memory_bucket round trip.
 
+        Also use this as the primary RETRIEVAL path for non-English queries:
+        semantic search (search_memory) is English-only, so for a query in any
+        other language, list buckets here and match the user's need against the
+        item titles and descriptions yourself (they're stored in each item's own
+        language), then read_context the ones you pick.
+
         Returns both owned buckets and buckets shared with the user. Each
         bucket has a `role` ('owner', 'editor', or 'viewer'); shared buckets
         also include the owner's name/email.
@@ -222,6 +228,16 @@ def register_tools(mcp_app):
         and relevance scores.
         Use this to discover which contexts contain relevant information,
         then use read_context to get the full content.
+
+        LANGUAGE — IMPORTANT: The semantic index is English-optimized. It is
+        reliable ONLY for English queries. If the user's query is in any other
+        language (e.g. German, French, Spanish, Chinese, Arabic), DO NOT rely on
+        this tool — its scores will be misleading. Instead, browse directly:
+        call get_user_memory_buckets to get every bucket's item titles and
+        descriptions (descriptions are stored in each item's own language),
+        pick the relevant contextId(s) yourself by reading that metadata, then
+        call read_context to fetch the full content. You are multilingual; the
+        embedding model is not, so do the matching yourself in that case.
 
         Args:
             query: The search query to find relevant memories.
