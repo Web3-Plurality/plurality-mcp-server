@@ -1,3 +1,10 @@
+## [1.5.1](https://github.com/Web3-Plurality/plurality-mcp-server/compare/v1.5.0...v1.5.1) (2026-06-09)
+
+
+### Bug Fixes
+
+* **tools:** clarify language limits of semantic search and recommend manual retrieval for non-english queries ([b2e5933](https://github.com/Web3-Plurality/plurality-mcp-server/commit/b2e59333daa4eb5125f05ce9a0a60ec7b9ab5ee7))
+
 # [1.5.0](https://github.com/Web3-Plurality/plurality-mcp-server/compare/v1.4.1...v1.5.0) (2026-06-06)
 
 
