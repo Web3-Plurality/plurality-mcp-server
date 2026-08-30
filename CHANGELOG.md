@@ -1,3 +1,11 @@
+## [1.5.2](https://github.com/Web3-Plurality/plurality-mcp-server/compare/v1.5.1...v1.5.2) (2026-08-30)
+
+
+### Bug Fixes
+
+* use GITHUB_TOKEN instead of GHCR_TOKEN PAT for GHCR publish workflows ([a3bc6d7](https://github.com/Web3-Plurality/plurality-mcp-server/commit/a3bc6d76a13a96bc16f1afca6bcf7f1402fc68ea))
+* **workflows:** open version-bump pr on release, pin actions, and emit release version ([1c0aca9](https://github.com/Web3-Plurality/plurality-mcp-server/commit/1c0aca90b73939f3113410fb1372ca29e93e247b))
+
 ## [1.5.1](https://github.com/Web3-Plurality/plurality-mcp-server/compare/v1.5.0...v1.5.1) (2026-06-09)
 
 
