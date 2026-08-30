@@ -7,6 +7,12 @@ on:
     types: [created]
   workflow_dispatch:
 
+permissions:
+  contents: write        # semantic-release pushes version commit + tag
+  packages: write        # push images to ghcr.io
+  issues: write          # semantic-release release comments
+  pull-requests: write   # semantic-release release comments
+
 jobs:
   semantic_release:
     runs-on: ubuntu-latest
@@ -22,15 +28,13 @@ jobs:
           git config --global user.name "semantic-release-bot"
 
       - name: Docker Login
-        run: docker login --username ${{ secrets.GHCR_USERNAME }} --password ${{ secrets.GHCR_TOKEN }} ghcr.io
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io --username ${{ github.actor }} --password-stdin
 
       - name: Checkout code
-        uses: actions/checkout@v2
-        with:
-          token: ${{ secrets.GHCR_TOKEN }}
+        uses: actions/checkout@v4
 
       - name: Set up Node.js
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v4
         with:
           node-version: 20
 
@@ -48,4 +52,4 @@ jobs:
         run: |
           npx semantic-release
         env:
-          GITHUB_TOKEN: ${{ secrets.GHCR_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
